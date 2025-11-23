@@ -1,3 +1,6 @@
+# Custom build output
+build/
+
 # Build results
 [Bb]in/
 [Oo]bj/
@@ -20,5 +23,3 @@
 # Publish
 publish/
 
-# Accidental folder
-src../
