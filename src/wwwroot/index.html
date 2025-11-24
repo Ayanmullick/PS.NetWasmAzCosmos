@@ -2,16 +2,18 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>C# WebAssembly Hello World</title>
+  <title>C# Client-Side Compilation</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     body { font-family: Consolas, Menlo, monospace; margin: 2rem; background-color: #0f172a; color: #f8fafc; }
     pre { padding: 1rem; border: 1px solid #334155; border-radius: 0.5rem; background: #020617; min-height: 6rem; }
+    .info { color: #94a3b8; font-size: 0.9rem; margin-bottom: 1rem; }
   </style>
 </head>
 <body>
   <main>
-    <h1 id="message">Loading...</h1>
+    <div class="info">This page fetches 'Hello.cs', compiles it using Roslyn in the browser, and runs it.</div>
+    <h1 id="message">Initializing Runtime...</h1>
   </main>
   <script type="module" src="./app.js"></script>
 </body>

@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk.WebAssembly">
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <OutputType>Exe</OutputType>
@@ -6,27 +6,32 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <PublishTrimmed>true</PublishTrimmed>
-    <!-- Configures the output directory for publish -->
-    <PublishDir>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\..\publish\'))</PublishDir>
+    <SuppressTrimAnalysisWarnings>true</SuppressTrimAnalysisWarnings>
+    <RuntimeIdentifier>browser-wasm</RuntimeIdentifier>
+    <WasmMainJSPath>wwwroot\app.js</WasmMainJSPath>
+    <RunAOTCompilation>false</RunAOTCompilation>
+    <BrotliCompression>false</BrotliCompression>
+    <GzipCompression>false</GzipCompression>
   </PropertyGroup>
-
-  <ItemGroup>
-    <Content Include="wwwroot\index.html">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      <CopyToPublishDirectory>Always</CopyToPublishDirectory>
-      <TargetPath>index.html</TargetPath>
-    </Content>
-    <Content Include="wwwroot\app.js">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      <CopyToPublishDirectory>Always</CopyToPublishDirectory>
-      <TargetPath>app.js</TargetPath>
-    </Content>
-  </ItemGroup>
 
   <Target Name="RemoveUnwantedFiles" AfterTargets="ComputeFilesToPublish">
     <ItemGroup>
       <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="'%(Extension)' == '.a' or '%(Extension)' == '.c' or '%(Extension)' == '.h'" />
     </ItemGroup>
   </Target>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.9.2" />
+    <PackageReference Include="Basic.Reference.Assemblies.NetStandard20" Version="1.7.8" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Preserve Roslyn assemblies for runtime compilation -->
+    <TrimmerRootAssembly Include="Microsoft.CodeAnalysis" />
+    <TrimmerRootAssembly Include="Microsoft.CodeAnalysis.CSharp" />
+    <TrimmerRootAssembly Include="Basic.Reference.Assemblies.NetStandard20" />
+    <TrimmerRootAssembly Include="System.Reflection" />
+    <TrimmerRootAssembly Include="System.Linq" />
+  </ItemGroup>
 
 </Project>

@@ -1,4 +1,4 @@
-import { dotnet } from "./dotnet.js";
+import { dotnet } from "./_framework/dotnet.js";
 
 const setMessage = (message) => {
   const element = document.getElementById("message");
@@ -15,8 +15,17 @@ try {
   await runMain();
 
   const exports = await getAssemblyExports("HelloWasm");
-  console.log("assembly exports", exports);
-  const message = exports.HelloWasmApp?.Interop?.GetMessage?.() ?? "Hello World";
+
+  const response = await fetch("./Hello.cs");
+  if (!response.ok) {
+      throw new Error(`Failed to fetch Hello.cs: ${response.statusText}`);
+  }
+  const sourceCode = await response.text();
+
+  setMessage("Compiling C# in browser...");
+  await new Promise(r => setTimeout(r, 100));
+
+  const message = exports.HelloWasmApp.Interop.CompileAndRun(sourceCode);
   setMessage(message);
 } catch (error) {
   console.error("Failed to start .NET runtime", error);

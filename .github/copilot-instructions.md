@@ -47,13 +47,10 @@ Execution guidelines reminder:
 	Manual scaffold completed (no project setup info returned, so files created directly).
 
 - [x] Customize the Project
-	<!--
-	Verify that all previous steps have been completed successfully and you have marked the step as completed.
-	Develop a plan to modify codebase according to user requirements.
-	Apply modifications using appropriate tools and user-provided references.
-	Skip this step for "Hello World" projects.
-	-->
-	Skipped per Hello World guidance.
+	Implemented client-side compilation using Roslyn and Basic.Reference.Assemblies.
+	Fixed threading issue by disabling concurrent build in Roslyn.
+	Enabled aggressive trimming to reduce download size.
+	Switched to NetStandard20 references to resolve version mismatch errors with trimming.
 
 - [x] Install Required Extensions
 	<!-- ONLY install extensions provided mentioned in the get_project_setup_info. Skip this step otherwise and mark as completed. -->
@@ -66,7 +63,7 @@ Execution guidelines reminder:
 	Run diagnostics and resolve any issues.
 	Check for markdown files in project folder for relevant instructions on how to do this.
 	-->
-	Ran `dotnet publish -c Release -r browser-wasm /p:UseAppHost=false` successfully.
+	Ran `dotnet publish src/HelloWasm.csproj -c Release -r browser-wasm -o publish /p:UseAppHost=false` successfully.
 
 - [x] Create and Run Task
 	<!--
@@ -77,7 +74,7 @@ Execution guidelines reminder:
 	No custom VS Code task required for a single publish command.
 
 - [x] Launch the Project
-	Started `dotnet serve --directory publish --port 5000` (stop with Ctrl+C when finished testing).
+	Started `dotnet serve --directory publish/wwwroot --port 5000` (stop with Ctrl+C when finished testing).
 
 - [x] Ensure Documentation is Complete
 	README.md added and instructions cleaned (comments removed) per requirements.
