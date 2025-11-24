@@ -24,9 +24,9 @@ This drops intermediate build assets under `build/` and automatically mirrors th
 
 1. Serve the `publish/` output with any static server. Example:
    ```sh
-   dotnet serve --directory publish --port 5000
+   dotnet serve --directory publish/wwwroot --port 5000
    ```
-2. Browse to `http://localhost:5000`. The `<pre>` element mirrors the text printed by `Console.WriteLine`.
+2. Browse to `http://localhost:5000`. The `<pre>` element mirrors the text printed by `Console.WriteLine`. The precompiled PowerShell from `Hello.ps1` will execute and display its output.
 
 ## Folder layout
 

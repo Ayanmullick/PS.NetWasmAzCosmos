@@ -21,4 +21,8 @@
     </ItemGroup>
   </Target>
 
+  <Target Name="CompilePowerShell" BeforeTargets="CoreCompile">
+    <Exec Command="powershell.exe -ExecutionPolicy Bypass -File $(MSBuildThisFileDirectory)..\CompilePowerShell.ps1" />
+  </Target>
+
 </Project>
