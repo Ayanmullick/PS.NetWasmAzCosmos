@@ -1,7 +1,7 @@
 - [x] Verify that the copilot-instructions.md file in the .github directory is created. (Created file in new workspace.)
 
 - [x] Clarify Project Requirements
-	Hello World .NET 10 WebAssembly sample per user.
+	Basic PowerShell hello world project recompiled to C# for browser execution via .NET WebAssembly.
 
 - [x] Scaffold the Project
 	Manual scaffold completed (no project setup info returned, so files created directly).
@@ -33,9 +33,7 @@ Execution guidelines reminder:
 
 - [x] Clarify Project Requirements
 	<!-- Ask for project type, language, and frameworks if not specified. Skip if already provided. -->
-	Hello World .NET 10 WebAssembly sample per user.
-
- - [x] Scaffold the Project
+	Basic PowerShell hello world project recompiled to C# for browser execution via .NET WebAssembly.
 	<!--
 	Ensure that the previous step has been marked as completed.
 	Call project setup tool with projectType parameter.
