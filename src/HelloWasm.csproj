@@ -21,19 +21,4 @@
     </ItemGroup>
   </Target>
 
-  <ItemGroup>
-    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.9.2" />
-    <!-- Use minimal reference assemblies instead of full NetStandard20 -->
-    <PackageReference Include="Basic.Reference.Assemblies.Net60" Version="1.7.8" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <!-- Preserve Roslyn assemblies for runtime compilation -->
-    <TrimmerRootAssembly Include="Microsoft.CodeAnalysis" />
-    <TrimmerRootAssembly Include="Microsoft.CodeAnalysis.CSharp" />
-    <TrimmerRootAssembly Include="Basic.Reference.Assemblies.Net60" />
-    <TrimmerRootAssembly Include="System.Reflection" />
-    <TrimmerRootAssembly Include="System.Linq" />
-  </ItemGroup>
-
 </Project>

@@ -16,17 +16,17 @@ try {
 
   const exports = await getAssemblyExports("HelloWasm");
 
-  const response = await fetch("./Hello.cs");
+  const response = await fetch("./Hello.ps1");
   if (!response.ok) {
-      throw new Error(`Failed to fetch Hello.cs: ${response.statusText}`);
+      throw new Error(`Failed to fetch Hello.ps1: ${response.statusText}`);
   }
-  const sourceCode = await response.text();
+  const script = await response.text();
 
-  setMessage("Compiling C# in browser...");
-  await new Promise(r => setTimeout(r, 100));
+  setMessage("Executing PowerShell...");
+  await new Promise(r => setTimeout(r, 50));
 
-  const message = exports.HelloWasmApp.Interop.CompileAndRun(sourceCode);
-  setMessage(message);
+  const output = exports.HelloWasmApp.Interop.ExecutePowerShell(script);
+  setMessage(output);
 } catch (error) {
   console.error("Failed to start .NET runtime", error);
   setMessage("Runtime error. Check console.");
