@@ -6,7 +6,7 @@ using System.Runtime.InteropServices.JavaScript;
 using System.Runtime.Versioning;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
-using NetStandard = Basic.Reference.Assemblies.NetStandard20;
+using Net60 = Basic.Reference.Assemblies.Net60;
 
 namespace HelloWasmApp;
 
@@ -18,7 +18,7 @@ public static partial class Interop
     {
         try
         {
-            var references = NetStandard.References.All;
+            var references = Net60.References.All;
 
             var syntaxTree = CSharpSyntaxTree.ParseText(sourceCode);
 

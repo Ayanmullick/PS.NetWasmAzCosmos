@@ -10,8 +10,9 @@
     <RuntimeIdentifier>browser-wasm</RuntimeIdentifier>
     <WasmMainJSPath>wwwroot\app.js</WasmMainJSPath>
     <RunAOTCompilation>false</RunAOTCompilation>
-    <BrotliCompression>false</BrotliCompression>
+    <BrotliCompression>true</BrotliCompression>
     <GzipCompression>false</GzipCompression>
+    <WasmStripILAfterAOT>true</WasmStripILAfterAOT>
   </PropertyGroup>
 
   <Target Name="RemoveUnwantedFiles" AfterTargets="ComputeFilesToPublish">
@@ -22,14 +23,15 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.9.2" />
-    <PackageReference Include="Basic.Reference.Assemblies.NetStandard20" Version="1.7.8" />
+    <!-- Use minimal reference assemblies instead of full NetStandard20 -->
+    <PackageReference Include="Basic.Reference.Assemblies.Net60" Version="1.7.8" />
   </ItemGroup>
 
   <ItemGroup>
     <!-- Preserve Roslyn assemblies for runtime compilation -->
     <TrimmerRootAssembly Include="Microsoft.CodeAnalysis" />
     <TrimmerRootAssembly Include="Microsoft.CodeAnalysis.CSharp" />
-    <TrimmerRootAssembly Include="Basic.Reference.Assemblies.NetStandard20" />
+    <TrimmerRootAssembly Include="Basic.Reference.Assemblies.Net60" />
     <TrimmerRootAssembly Include="System.Reflection" />
     <TrimmerRootAssembly Include="System.Linq" />
   </ItemGroup>
