@@ -17,7 +17,7 @@ The `src/` folder contains the C# entry point (generated from PowerShell) and th
 
 ```sh
 cd C:/temp/HelloWasm
-dotnet publish src/HelloWasm.csproj -c Release -r browser-wasm /p:UseAppHost=false
+dotnet publish src/HelloWasm.csproj -c Release -r browser-wasm -o publish /p:UseAppHost=false
 ```
 
 This generates intermediate build assets in `build/` and places the final WebAssembly runtime bundle in `publish/` for stable hosting.
