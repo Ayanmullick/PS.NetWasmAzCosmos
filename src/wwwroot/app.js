@@ -20,7 +20,7 @@ try {
   await new Promise(r => setTimeout(r, 50));
 
   // Execute the pre-compiled script (no fetch, no parsing)
-  const output = exports.HelloWasmApp.Interop.ExecuteCompiledScript();
+  const output = await exports.HelloWasmApp.Interop.ExecuteCompiledScriptAsync();
   setMessage(output);
 } catch (error) {
   console.error("Failed to start .NET runtime", error);
