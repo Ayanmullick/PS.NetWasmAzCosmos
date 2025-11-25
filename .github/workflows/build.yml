@@ -1,0 +1,32 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Set environment variable from repo variable
+      run: echo "ZtechCosmosPrimaryKey=${{ vars.ZtechCosmosPrimaryKey }}" >> $GITHUB_ENV
+
+    - name: Build and publish
+      run: dotnet publish -c Release
+
+    - name: Deploy to GitHub Pages (optional)
+      uses: peaceiris/actions-gh-pages@v4
+      if: github.ref == 'refs/heads/main'
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./publish/wwwroot

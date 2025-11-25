@@ -94,28 +94,62 @@ foreach ($statement in $statements) {
         $partitionKey = if ($params.ContainsKey('partitionkey')) { $params['partitionkey'] } else { "" }
 
         $connectionString = ""
+        $isDynamic = $false
+        $envVar = ""
         if ($params.ContainsKey('connectionstring')) {
             $connectionString = $params['connectionstring']
         }
         elseif ($params.ContainsKey('accountname') -and $params.ContainsKey('accountkey')) {
             $accountName = $params['accountname']
             $accountKey = $params['accountkey']
-            if ($accountKey.StartsWith("=")) {
-                $accountKey = $accountKey.TrimStart("=")
+            if ($accountKey -match '^\$env:(.+)') {
+                $isDynamic = $true
+                $envVar = $matches[1]
+            } else {
+                if ($accountKey.StartsWith("=")) {
+                    $accountKey = $accountKey.TrimStart("=")
+                }
+                $endpoint = "https://$accountName.documents.azure.com:443/"
+                $connectionString = "AccountEndpoint=$endpoint;AccountKey=$accountKey;"
             }
-            $endpoint = "https://$accountName.documents.azure.com:443/"
-            $connectionString = "AccountEndpoint=$endpoint;AccountKey=$accountKey;"
         }
 
-        if (-not $databaseName -or -not $containerName -or -not $connectionString) {
+        if (-not $databaseName -or -not $containerName -or (-not $connectionString -and -not $isDynamic)) {
             continue
         }
 
-        $connectionString = $connectionString -replace '"', '""'
         $query = $query -replace '"', '\"'
         $partitionKey = $partitionKey -replace '"', '""'
 
-        $csharpCode += @"
+        if ($isDynamic) {
+            $csharpCode += @"
+
+        string accountKey = Environment.GetEnvironmentVariable("$envVar");
+        if (accountKey == null)
+        {
+            outputs.Add("Environment variable $envVar not set.");
+        }
+        else
+        {
+            if (accountKey.StartsWith("="))
+            {
+                accountKey = accountKey.TrimStart('=');
+            }
+            string endpoint = "https://$accountName.documents.azure.com:443/";
+            string connectionString = $"AccountEndpoint={endpoint};AccountKey={accountKey};";
+
+            outputs.Add(await ReadFirstCosmosItemViaRestAsync(
+                connectionString: connectionString,
+                databaseName: "$databaseName",
+                containerName: "$containerName",
+                query: @"$query",
+                partitionKey: @"$partitionKey"));
+        }
+"@
+        } else {
+            $connectionString = $connectionString -replace '"', '""'
+
+            $csharpCode += @"
 
         outputs.Add(await ReadFirstCosmosItemViaRestAsync(
             connectionString: @"$connectionString",
@@ -124,6 +158,7 @@ foreach ($statement in $statements) {
             query: @"$query",
             partitionKey: @"$partitionKey"));
 "@
+        }
         continue
     }
 }
