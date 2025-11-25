@@ -94,8 +94,6 @@ foreach ($statement in $statements) {
         $partitionKey = if ($params.ContainsKey('partitionkey')) { $params['partitionkey'] } else { "" }
 
         $connectionString = ""
-        $isDynamic = $false
-        $envVar = ""
         if ($params.ContainsKey('connectionstring')) {
             $connectionString = $params['connectionstring']
         }
@@ -103,53 +101,29 @@ foreach ($statement in $statements) {
             $accountName = $params['accountname']
             $accountKey = $params['accountkey']
             if ($accountKey -match '^\$env:(.+)') {
-                $isDynamic = $true
-                $envVar = $matches[1]
-            } else {
-                if ($accountKey.StartsWith("=")) {
-                    $accountKey = $accountKey.TrimStart("=")
+                $envVarName = $matches[1]
+                $accountKey = [Environment]::GetEnvironmentVariable($envVarName)
+                if (-not $accountKey) {
+                    Write-Host "Warning: Environment variable $envVarName not set, using empty string."
+                    $accountKey = ""
                 }
-                $endpoint = "https://$accountName.documents.azure.com:443/"
-                $connectionString = "AccountEndpoint=$endpoint;AccountKey=$accountKey;"
             }
+            if ($accountKey.StartsWith("=")) {
+                $accountKey = $accountKey.TrimStart("=")
+            }
+            $endpoint = "https://$accountName.documents.azure.com:443/"
+            $connectionString = "AccountEndpoint=$endpoint;AccountKey=$accountKey;"
         }
 
-        if (-not $databaseName -or -not $containerName -or (-not $connectionString -and -not $isDynamic)) {
+        if (-not $databaseName -or -not $containerName -or -not $connectionString) {
             continue
         }
 
+        $connectionString = $connectionString -replace '"', '""'
         $query = $query -replace '"', '\"'
         $partitionKey = $partitionKey -replace '"', '""'
 
-        if ($isDynamic) {
-            $csharpCode += @"
-
-        string accountKey = Environment.GetEnvironmentVariable("$envVar");
-        if (accountKey == null)
-        {
-            outputs.Add("Environment variable $envVar not set.");
-        }
-        else
-        {
-            if (accountKey.StartsWith("="))
-            {
-                accountKey = accountKey.TrimStart('=');
-            }
-            string endpoint = "https://$accountName.documents.azure.com:443/";
-            string connectionString = $"AccountEndpoint={endpoint};AccountKey={accountKey};";
-
-            outputs.Add(await ReadFirstCosmosItemViaRestAsync(
-                connectionString: connectionString,
-                databaseName: "$databaseName",
-                containerName: "$containerName",
-                query: @"$query",
-                partitionKey: @"$partitionKey"));
-        }
-"@
-        } else {
-            $connectionString = $connectionString -replace '"', '""'
-
-            $csharpCode += @"
+        $csharpCode += @"
 
         outputs.Add(await ReadFirstCosmosItemViaRestAsync(
             connectionString: @"$connectionString",
@@ -158,7 +132,6 @@ foreach ($statement in $statements) {
             query: @"$query",
             partitionKey: @"$partitionKey"));
 "@
-        }
         continue
     }
 }
