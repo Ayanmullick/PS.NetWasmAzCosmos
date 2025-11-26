@@ -21,3 +21,4 @@ build/
 publish/
 
 .MyFolder/
+*.sln
