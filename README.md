@@ -15,7 +15,8 @@ The `src/` folder contains the C# entry point (generated from PowerShell) and th
 
 ## Build
 
-```sh
+```pwsh
+$env:ZtechCosmosPrimaryKey = '<your key>'
 cd C:/temp/HelloWasm
 dotnet publish src/HelloWasm.csproj -c Release -r browser-wasm -o publish /p:UseAppHost=false
 ```
@@ -25,7 +26,7 @@ This generates intermediate build assets in `build/` and places the final WebAss
 ## Run locally
 
 1. Serve the `publish/` folder with a static server. Example:
-   ```sh
+   ```pwsh
    dotnet serve --directory publish/wwwroot --port 5000
    ```
 2. Open `http://localhost:5000` in your browser. The `<pre>` element will display output from the recompiled PowerShell script (`Hello.ps1`), executed via the WebAssembly runtime.
@@ -51,3 +52,4 @@ HelloWasm/
 - `Program.cs` is the C# equivalent of the PowerShell script; `Console.WriteLine` output appears in the browser.
 - The JavaScript host loads the WebAssembly runtime (`dotnet.js`) and routes console output to the page.
 - Deploy by uploading the `publish/` folder to any static host (e.g., GitHub Pages, Azure Static Web Apps).
+- During build, the MSBuild target in `HelloWasm.csproj` emits `obj/BuildSecrets.g.cs` using the `ZtechCosmosPrimaryKey` environment variable (GitHub repo variable/secret in CI, your env var locally) so the compiled assembly can read it at runtime.

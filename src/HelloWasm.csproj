@@ -29,4 +29,19 @@
     <Exec Command="pwsh -NoProfile -ExecutionPolicy Bypass -File $(MSBuildThisFileDirectory)..\CompilePowerShell.ps1" />
   </Target>
 
+  <PropertyGroup>
+    <CosmosKey>$(ZtechCosmosPrimaryKey)</CosmosKey>
+  </PropertyGroup>
+
+  <Target Name="GenerateBuildSecrets" BeforeTargets="Compile">
+    <WriteLinesToFile
+      File="$(IntermediateOutputPath)BuildSecrets.g.cs"
+      Overwrite="true"
+      Lines='namespace HelloWasmApp;
+internal static class BuildSecrets { internal const string CosmosKey = "$(CosmosKey)"; }' />
+    <ItemGroup>
+      <Compile Include="$(IntermediateOutputPath)BuildSecrets.g.cs" />
+    </ItemGroup>
+  </Target>
+
 </Project>
