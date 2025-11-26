@@ -22,9 +22,9 @@ jobs:
     - name: Build and publish
       run: dotnet publish -c Release
 
-    - name: Deploy to GitHub Pages (optional)
+    - name: Deploy to GitHub Pages
       uses: peaceiris/actions-gh-pages@v4
-      if: github.ref == 'refs/heads/main'
+      # Removed the 'if' condition so it always runs on manual trigger
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         publish_dir: ./publish/wwwroot
