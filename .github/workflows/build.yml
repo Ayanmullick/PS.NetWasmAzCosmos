@@ -3,6 +3,11 @@ name: Build and Deploy
 on:
   workflow_dispatch:  # Manual trigger only
 
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -12,7 +17,7 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Setup .NET
-      uses: actions/setup-dotnet@v5  # Updated to latest version
+      uses: actions/setup-dotnet@v5
       with:
         dotnet-version: '8.0.x'
 
@@ -22,9 +27,14 @@ jobs:
     - name: Build and publish
       run: dotnet publish -c Release
 
-    - name: Deploy to GitHub Pages
-      uses: peaceiris/actions-gh-pages@v4
-      # Removed the 'if' condition so it always runs on manual trigger
+    - name: Setup Pages
+      uses: actions/configure-pages@v5
+
+    - name: Upload artifact
+      uses: actions/upload-pages-artifact@v3
       with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: ./publish/wwwroot
+        path: ./publish/wwwroot
+
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v4
