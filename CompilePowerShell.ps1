@@ -64,6 +64,7 @@ public static class CompiledPowerShell
 "@
 
 foreach ($statement in $statements) {
+    # Parsing statements generated from Hello.ps1
     # Handle Write-Output 'text' or "text"
     if ($statement -match "Write-Output\s+'([^']+)'") {
         $message = $matches[1] -replace '"', '""'
@@ -79,33 +80,83 @@ foreach ($statement in $statements) {
 
     # Handle Read-AzCosmosItems with connection string or account name/key
     if ($statement -match '(?i)^Read-AzCosmosItems\b') {
-        $paramRegex = '-(?<name>\w+)\s+(?<value>"[^"]*"|''[^'']*''|\S+)'
+        $paramRegex = '(?<=^|\s)-(?<name>\w+)\s+(?<value>"[^"]*"|''[^'']*''|\S+)'
         $params = @{}
+        $envRefs = @{}
         foreach ($m in [regex]::Matches($statement, $paramRegex)) {
             $name = $m.Groups['name'].Value.ToLowerInvariant()
-            $value = $m.Groups['value'].Value.Trim().Trim('"').Trim("'")
+            $raw = $m.Groups['value'].Value.Trim()
+            $value = $raw.Trim('"').Trim("'")
+
+            if ($value -match '^\$env:([A-Za-z_][A-Za-z0-9_]*)$') {
+                $envName = $matches[1]
+                $envRefs[$name] = $envName
+                $envValue = [Environment]::GetEnvironmentVariable($envName)
+                if ($envValue) {
+                    $value = $envValue
+                }
+            }
+
             $params[$name] = $value
         }
 
         $databaseName = $params['databasename']
+        if (-not $databaseName -and $statement -match '(?i)-DatabaseName\s+("([^"]+)"|''([^'']+)''|(\S+))') {
+            $databaseName = ($matches[2], $matches[3], $matches[4] | Where-Object { $_ })[0]
+        }
+
         $containerName = $params['containername']
+        if (-not $containerName -and $statement -match '(?i)-ContainerName\s+("([^"]+)"|''([^'']+)''|(\S+))') {
+            $containerName = ($matches[2], $matches[3], $matches[4] | Where-Object { $_ })[0]
+        }
+
+        $accountName = $params['accountname']
+        if (-not $accountName -and $statement -match '(?i)-AccountName\s+("([^"]+)"|''([^'']+)''|(\S+))') {
+            $accountName = ($matches[2], $matches[3], $matches[4] | Where-Object { $_ })[0]
+        }
+
         $top = if ($params.ContainsKey('top')) { [int]$params['top'] } else { 1 }
         $query = if ($params.ContainsKey('query')) { $params['query'] } else { "SELECT TOP $top * FROM c" }
         $partitionKey = if ($params.ContainsKey('partitionkey')) { $params['partitionkey'] } else { "" }
+        if (-not $partitionKey -and $statement -match '(?i)-PartitionKey\s+("([^"]+)"|''([^'']+)''|(\S+))') {
+            $partitionKey = ($matches[2], $matches[3], $matches[4] | Where-Object { $_ })[0]
+        }
 
         $connectionString = ""
         $isDynamic = $false
         $envVar = ""
+
         if ($params.ContainsKey('connectionstring')) {
             $connectionString = $params['connectionstring']
         }
-        elseif ($params.ContainsKey('accountname') -and $params.ContainsKey('accountkey')) {
-            $accountName = $params['accountname']
+        elseif ($accountName -and $params.ContainsKey('accountkey')) {
             $accountKey = $params['accountkey']
-            if ($accountKey -match '^\$env:(.+)') {
-                $isDynamic = $true
-                $envVar = $matches[1]
-            } else {
+
+            # If the account key came from an env ref and the env value exists at build time, inline it.
+            if ($envRefs.ContainsKey('accountkey')) {
+                $envVar = $envRefs['accountkey']
+                $envVal = [Environment]::GetEnvironmentVariable($envVar)
+                if ($envVal) {
+                    $accountKey = $envVal
+                    $isDynamic = $false
+                }
+                else {
+                    $isDynamic = $true
+                }
+            }
+
+            if ($isDynamic) {
+                # Keep for runtime resolution
+                $envVar = $envRefs['accountkey']
+            }
+            else {
+                if (-not $accountKey) {
+                    $csharpCode += @"
+
+        outputs.Add("Cosmos AccountKey not provided (check environment variable).");
+"@
+                    continue
+                }
                 if ($accountKey.StartsWith("=")) {
                     $accountKey = $accountKey.TrimStart("=")
                 }
@@ -114,7 +165,11 @@ foreach ($statement in $statements) {
             }
         }
 
-        if (-not $databaseName -or -not $containerName -or (-not $connectionString -and -not $isDynamic)) {
+        if (-not $databaseName -or -not $containerName) {
+            $csharpCode += @"
+
+        outputs.Add("Cosmos parameters missing.");
+"@
             continue
         }
 

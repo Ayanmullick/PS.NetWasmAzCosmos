@@ -20,6 +20,12 @@ public static class CompiledPowerShell
     {
         var outputs = new List<string>();
         outputs.Add("Hello PowerShell");
+        outputs.Add(await ReadFirstCosmosItemViaRestAsync(
+            connectionString: @"AccountEndpoint=https://ztech.documents.azure.com:443/;AccountKey=zQjO7qJtfAxpiR4VrKHLpOK0heFeDriR0W2niY17ZRhRPJMITmRjbZwve72EdrVDbIP6GII979RUEH1wc1rDFg==;",
+            databaseName: "Ayan",
+            containerName: "Ayanid",
+            query: @"SELECT TOP 1 * FROM c",
+            partitionKey: @"4cb67ab0-ba1a-0e8a-8dfc-d48472fd5766"));
         if (outputs.Count == 0)
         {
             return "No output generated.";
