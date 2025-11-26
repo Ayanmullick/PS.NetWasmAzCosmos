@@ -1,10 +1,15 @@
 # Build-time PowerShell to C# compiler
 # This script reads Hello.ps1 and generates C# code that mimics a tiny subset
 # of the PowerShell the project uses (Write-Output and Read-AzCosmosItems).
+param(
+    [string]$OutputPath
+)
 
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $scriptPath = Join-Path $scriptRoot "src/wwwroot/Hello.ps1"
-$outputPath = Join-Path $scriptRoot "src/CompiledPowerShell.g.cs"
+if (-not $OutputPath) {
+    $OutputPath = Join-Path $scriptRoot "src/CompiledPowerShell.g.cs"
+}
 
 Write-Host "Compiling PowerShell script to C#..."
 
@@ -41,6 +46,7 @@ if ($buffer.Trim()) {
 
 $csharpCode = @"
 // Auto-generated from Hello.ps1 at build time
+#nullable enable
 using System;
 using System.Buffers;
 using System.Collections.Generic;
@@ -132,22 +138,9 @@ foreach ($statement in $statements) {
         elseif ($accountName -and $params.ContainsKey('accountkey')) {
             $accountKey = $params['accountkey']
 
-            # If the account key came from an env ref and the env value exists at build time, inline it.
             if ($envRefs.ContainsKey('accountkey')) {
                 $envVar = $envRefs['accountkey']
-                $envVal = [Environment]::GetEnvironmentVariable($envVar)
-                if ($envVal) {
-                    $accountKey = $envVal
-                    $isDynamic = $false
-                }
-                else {
-                    $isDynamic = $true
-                }
-            }
-
-            if ($isDynamic) {
-                # Keep for runtime resolution
-                $envVar = $envRefs['accountkey']
+                $isDynamic = $true
             }
             else {
                 if (-not $accountKey) {
@@ -179,8 +172,12 @@ foreach ($statement in $statements) {
         if ($isDynamic) {
             $csharpCode += @"
 
-        string accountKey = Environment.GetEnvironmentVariable("$envVar");
-        if (accountKey == null)
+        string? accountKey = Environment.GetEnvironmentVariable("$envVar");
+        if (string.IsNullOrWhiteSpace(accountKey))
+        {
+            accountKey = BuildSecrets.CosmosKey;
+        }
+        if (string.IsNullOrWhiteSpace(accountKey))
         {
             outputs.Add("Environment variable $envVar not set.");
         }
@@ -364,5 +361,5 @@ $csharpCode += @"
 "@
 
 # Write the generated C# code
-$csharpCode | Out-File -FilePath $outputPath -Encoding UTF8
-Write-Host "Generated: $outputPath"
+$csharpCode | Out-File -FilePath $OutputPath -Encoding UTF8
+Write-Host "Generated: $OutputPath"

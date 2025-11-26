@@ -26,19 +26,31 @@
   </Target>
 
   <Target Name="CompilePowerShell" BeforeTargets="CoreCompile">
-    <Exec Command="pwsh -NoProfile -ExecutionPolicy Bypass -File $(MSBuildThisFileDirectory)..\CompilePowerShell.ps1" />
+    <Exec Command="pwsh -NoProfile -ExecutionPolicy Bypass -File $(MSBuildThisFileDirectory)..\CompilePowerShell.ps1 -OutputPath $(IntermediateOutputPath)CompiledPowerShell.g.cs" />
+    <ItemGroup>
+      <Compile Include="$(IntermediateOutputPath)CompiledPowerShell.g.cs" />
+    </ItemGroup>
   </Target>
 
   <PropertyGroup>
     <CosmosKey>$(ZtechCosmosPrimaryKey)</CosmosKey>
   </PropertyGroup>
 
-  <Target Name="GenerateBuildSecrets" BeforeTargets="Compile">
+  <Target Name="GenerateBuildSecrets" BeforeTargets="CoreCompile">
+    <ItemGroup>
+      <_BuildSecretsLines Include="#nullable disable" />
+      <_BuildSecretsLines Include="namespace HelloWasmApp" />
+      <_BuildSecretsLines Include="{" />
+      <_BuildSecretsLines Include="    internal static class BuildSecrets" />
+      <_BuildSecretsLines Include="    {" />
+      <_BuildSecretsLines Include="        internal const string CosmosKey = &quot;$(CosmosKey)&quot;%3B" />
+      <_BuildSecretsLines Include="    }" />
+      <_BuildSecretsLines Include="}" />
+    </ItemGroup>
     <WriteLinesToFile
       File="$(IntermediateOutputPath)BuildSecrets.g.cs"
       Overwrite="true"
-      Lines='namespace HelloWasmApp;
-internal static class BuildSecrets { internal const string CosmosKey = "$(CosmosKey)"; }' />
+      Lines="@(_BuildSecretsLines)" />
     <ItemGroup>
       <Compile Include="$(IntermediateOutputPath)BuildSecrets.g.cs" />
     </ItemGroup>
