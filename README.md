@@ -1,6 +1,6 @@
 # PowerShell Hello World via WebAssembly
 
-This project demonstrates recompiling basic PowerShell scripts to C# for execution in the browser using .NET WebAssembly. It serves as a minimal example of running PowerShell logic client-side without Blazor, by translating PowerShell code into C# and hosting it via WebAssembly.
+This project demonstrates recompiling basic PowerShell scripts to C# for execution in the browser using .NET WebAssembly. The sample prints "Hello World" and fetches data from Azure Cosmos DB directly from the browser (key provided via environment/secret), showing how PowerShell logic can run entirely client-side without Blazor by translating PowerShell code into C# and hosting it via WebAssembly.
 
 The `src/` folder contains the C# entry point (generated from PowerShell) and the HTML/JS host for browser execution. Build outputs are separated into `build/` and `publish/` folders.
 
@@ -21,7 +21,7 @@ cd C:/temp/HelloWasm
 dotnet publish src/HelloWasm.csproj -c Release -r browser-wasm -o publish /p:UseAppHost=false
 ```
 
-This generates intermediate build assets in `build/` and places the final WebAssembly runtime bundle in `publish/` for stable hosting.
+This sets the Cosmos DB key the sample uses to fetch data, generates intermediate build assets in `build/`, and places the final WebAssembly runtime bundle in `publish/` for stable hosting.
 
 ## Run locally
 
@@ -35,16 +35,16 @@ This generates intermediate build assets in `build/` and places the final WebAss
 
 ```
 HelloWasm/
-├─ README.md
-├─ src/
-│  ├─ HelloWasm.csproj
-│  ├─ Program.cs          # C# code recompiled from PowerShell
-│  └─ wwwroot/
-│     ├─ app.js
-│     ├─ index.html
-│     └─ Hello.ps1        # Original PowerShell script
-├─ build/                 # Auto-generated build artifacts
-└─ publish/               # Static WebAssembly assets for hosting
+|- README.md
+|- src/
+|  |- HelloWasm.csproj
+|  |- Program.cs          # C# code recompiled from PowerShell (Hello World + Cosmos DB query)
+|  `- wwwroot/
+|     |- app.js
+|     |- index.html
+|     `- Hello.ps1        # Original PowerShell script (Hello World + Cosmos DB query)
+|- build/                 # Auto-generated build artifacts
+`- publish/               # Static WebAssembly assets for hosting
 ```
 
 ## Notes
@@ -53,3 +53,4 @@ HelloWasm/
 - The JavaScript host loads the WebAssembly runtime (`dotnet.js`) and routes console output to the page.
 - Deploy by uploading the `publish/` folder to any static host (e.g., GitHub Pages, Azure Static Web Apps).
 - During build, the MSBuild target in `HelloWasm.csproj` emits `obj/BuildSecrets.g.cs` using the `ZtechCosmosPrimaryKey` environment variable (GitHub repo variable/secret in CI, your env var locally) so the compiled assembly can read it at runtime.
+- The Cosmos DB fetch runs in the browser via .NET WebAssembly; ensure the configured key grants the least privilege needed for the sample query.
