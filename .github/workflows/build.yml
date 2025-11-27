@@ -1,0 +1,43 @@
+name: Build and Deploy
+
+on:
+  workflow_dispatch:  # Manual trigger only
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v5
+      with:
+        dotnet-version: '10.0.x'  # Updated to .NET 10
+
+    - name: Install WebAssembly workload
+      run: dotnet workload install wasm-tools
+
+    - name: Set environment variable from repo variable
+      run: echo "ZtechCosmosPrimaryKey=${{ vars.ZtechCosmosPrimaryKey }}" >> $GITHUB_ENV
+
+    - name: Build and publish
+      run: dotnet publish src/HelloWasm.csproj -c Release -r browser-wasm -o publish /p:UseAppHost=false
+
+    - name: Setup Pages
+      uses: actions/configure-pages@v5
+
+    - name: Upload artifact
+      uses: actions/upload-pages-artifact@v4
+      with:
+        path: ./publish/wwwroot
+
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v4
