@@ -71,16 +71,32 @@ public static class CompiledPowerShell
 
 foreach ($statement in $statements) {
     # Parsing statements generated from Hello.ps1
+<<<<<<< HEAD
     # Handle Write-Output 'text' or "text" by capturing content within quotes
     if ($statement -match "Write-Output\s+(['""])(.*?)\1") {
         $message = $matches[2] -replace '"', '""' # Use group 2 for content
+=======
+    # Handle Write-Output 'text' or "text"
+    if ($statement -match "Write-Output\s+'([^']+)'") {
+        $message = $matches[1] -replace '"', '""'
+        $csharpCode += "`n        outputs.Add(`"$message`");"
+        continue
+    }
+
+    if ($statement -match 'Write-Output\s+"([^"]+)"') {
+        $message = $matches[1] -replace '"', '""'
+>>>>>>> a30db8eebe86511c3282ff94c61809b493b8e0e3
         $csharpCode += "`n        outputs.Add(`"$message`");"
         continue
     }
 
     # Handle Read-AzCosmosItems with connection string or account name/key
     if ($statement -match '(?i)^Read-AzCosmosItems\b') {
+<<<<<<< HEAD
         $paramRegex = '(?<=^|\s)-(?<name>\w+)\s+(?<value>"[^"]*"|''[^'']*''|[^-\s]\S*)'
+=======
+        $paramRegex = '(?<=^|\s)-(?<name>\w+)\s+(?<value>"[^"]*"|''[^'']*''|\S+)'
+>>>>>>> a30db8eebe86511c3282ff94c61809b493b8e0e3
         $params = @{}
         $envRefs = @{}
         foreach ($m in [regex]::Matches($statement, $paramRegex)) {
@@ -101,12 +117,34 @@ foreach ($statement in $statements) {
         }
 
         $databaseName = $params['databasename']
+<<<<<<< HEAD
         $containerName = $params['containername']
         $accountName = $params['accountname']
+=======
+        if (-not $databaseName -and $statement -match '(?i)-DatabaseName\s+("([^"]+)"|''([^'']+)''|(\S+))') {
+            $databaseName = ($matches[2], $matches[3], $matches[4] | Where-Object { $_ })[0]
+        }
+
+        $containerName = $params['containername']
+        if (-not $containerName -and $statement -match '(?i)-ContainerName\s+("([^"]+)"|''([^'']+)''|(\S+))') {
+            $containerName = ($matches[2], $matches[3], $matches[4] | Where-Object { $_ })[0]
+        }
+
+        $accountName = $params['accountname']
+        if (-not $accountName -and $statement -match '(?i)-AccountName\s+("([^"]+)"|''([^'']+)''|(\S+))') {
+            $accountName = ($matches[2], $matches[3], $matches[4] | Where-Object { $_ })[0]
+        }
+>>>>>>> a30db8eebe86511c3282ff94c61809b493b8e0e3
 
         $top = if ($params.ContainsKey('top')) { [int]$params['top'] } else { 1 }
         $query = if ($params.ContainsKey('query')) { $params['query'] } else { "SELECT TOP $top * FROM c" }
         $partitionKey = if ($params.ContainsKey('partitionkey')) { $params['partitionkey'] } else { "" }
+<<<<<<< HEAD
+=======
+        if (-not $partitionKey -and $statement -match '(?i)-PartitionKey\s+("([^"]+)"|''([^'']+)''|(\S+))') {
+            $partitionKey = ($matches[2], $matches[3], $matches[4] | Where-Object { $_ })[0]
+        }
+>>>>>>> a30db8eebe86511c3282ff94c61809b493b8e0e3
 
         $connectionString = ""
         $isDynamic = $false

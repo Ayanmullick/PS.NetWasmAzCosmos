@@ -15,6 +15,13 @@
     <WasmStripILAfterAOT>true</WasmStripILAfterAOT>
   </PropertyGroup>
 
+<<<<<<< HEAD
+=======
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+>>>>>>> a30db8eebe86511c3282ff94c61809b493b8e0e3
   <Target Name="RemoveUnwantedFiles" AfterTargets="ComputeFilesToPublish">
     <ItemGroup>
       <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="'%(Extension)' == '.a' or '%(Extension)' == '.c' or '%(Extension)' == '.h'" />
