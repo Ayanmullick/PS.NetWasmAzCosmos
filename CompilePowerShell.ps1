@@ -1,20 +1,35 @@
 # Build-time PowerShell to C# compiler
-# This script reads Hello.ps1 and generates C# code that mimics a tiny subset
-# of the PowerShell the project uses (Write-Output and Read-AzCosmosItems).
+# This script reads inline <script type="pwsh"> blocks in index.html and generates C# code
+# that mimics a tiny subset of the PowerShell the project uses (Write-Output and Read-AzCosmosItems).
 param(
     [string]$OutputPath
 )
 
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
-$scriptPath = Join-Path $scriptRoot "src/wwwroot/Hello.ps1"
+$htmlPath = Join-Path $scriptRoot "src/wwwroot/index.html"
 if (-not $OutputPath) {
     $OutputPath = Join-Path $scriptRoot "src/CompiledPowerShell.g.cs"
 }
 
 Write-Host "Compiling PowerShell script to C#..."
 
-# Read the PowerShell script
-$psCode = Get-Content $scriptPath -Raw
+# Read the PowerShell script(s) from <script type="pwsh"> in index.html
+$psCode = $null
+if (Test-Path $htmlPath) {
+    $indexHtml = Get-Content $htmlPath -Raw
+    $regexOptions = [System.Text.RegularExpressions.RegexOptions]::Singleline -bor `
+        [System.Text.RegularExpressions.RegexOptions]::IgnoreCase
+    $matches = [regex]::Matches($indexHtml, '<script\s+type="pwsh"[^>]*>(?<code>.*?)</script>', $regexOptions)
+    if ($matches.Count -gt 0) {
+        $codes = $matches | ForEach-Object { $_.Groups['code'].Value.Trim() } | Where-Object { $_ }
+        $psCode = ($codes -join "`n").Trim()
+    }
+}
+
+if (-not $psCode) {
+    Write-Warning "No inline PowerShell <script type=""pwsh""> blocks found in index.html."
+    $psCode = ""
+}
 
 # Flatten line continuations (trailing backtick) so multi-line commands can be parsed
 $statements = @()
@@ -45,7 +60,7 @@ if ($buffer.Trim()) {
 }
 
 $csharpCode = @"
-// Auto-generated from Hello.ps1 at build time
+// Auto-generated from inline PowerShell (index.html) at build time
 #nullable enable
 using System;
 using System.Buffers;
@@ -70,7 +85,7 @@ public static class CompiledPowerShell
 "@
 
 foreach ($statement in $statements) {
-    # Parsing statements generated from Hello.ps1
+    # Parsing statements generated from inline PowerShell
     # Handle Write-Output 'text' or "text" by capturing content within quotes
     if ($statement -match "Write-Output\s+(['""])(.*?)\1") {
         $message = $matches[2] -replace '"', '""' # Use group 2 for content

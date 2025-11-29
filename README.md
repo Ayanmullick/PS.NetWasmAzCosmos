@@ -1,6 +1,6 @@
 # PowerShell Hello World via WebAssembly
 
-This project demonstrates recompiling basic PowerShell scripts to C# for execution in the browser using .NET WebAssembly. The sample prints "Hello World" and fetches data from Azure Cosmos DB directly from the browser (key provided via environment/secret), showing how PowerShell logic can run entirely client-side without Blazor by translating PowerShell code into C# and hosting it via WebAssembly.
+This project demonstrates recompiling basic inline PowerShell (from `<script type="pwsh">` blocks in `index.html`) to C# for execution in the browser using .NET WebAssembly. The sample prints "Hello World" and fetches data from Azure Cosmos DB directly from the browser (key provided via environment/secret), showing how PowerShell logic can run entirely client-side without Blazor by translating PowerShell code into C# and hosting it via WebAssembly.
 
 The `src/` folder contains the C# entry point (generated from PowerShell) and the HTML/JS host for browser execution. Build outputs are separated into `build/` and `publish/` folders.
 
@@ -29,7 +29,7 @@ This sets the Cosmos DB key the sample uses to fetch data, generates intermediat
    ```pwsh
    dotnet serve --directory publish/wwwroot --port 5000
    ```
-2. Open `http://localhost:5000` in your browser. The `<pre>` element will display output from the recompiled PowerShell script (`Hello.ps1`), executed via the WebAssembly runtime.
+2. Open `http://localhost:5000` in your browser. The page will display output from the recompiled inline PowerShell, executed via the WebAssembly runtime.
 
 ## Folder layout
 
@@ -41,8 +41,7 @@ HelloWasm/
 |  |- Program.cs          # C# code recompiled from PowerShell (Hello World + Cosmos DB query)
 |  `- wwwroot/
 |     |- app.js
-|     |- index.html
-|     `- Hello.ps1        # Original PowerShell script (Hello World + Cosmos DB query)
+|     `- index.html       # Hosts inline <script type="pwsh"> blocks for compilation
 |- build/                 # Auto-generated build artifacts
 `- publish/               # Static WebAssembly assets for hosting
 ```
