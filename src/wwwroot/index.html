@@ -18,11 +18,16 @@
   <script type="pwsh" id="embedded-pwsh-hello">
 Write-Output 'Hello PowerShell'
   </script>
+
+<br>
+
   <script type="pwsh" id="embedded-pwsh-cosmos">
 # Retrieve a specific document by id (partition key is /id)
-Read-AzCosmosItems -AccountName ztech -DatabaseName Ayan -ContainerName Ayanid -PartitionKey '4cb67ab0-ba1a-0e8a-8dfc-d48472fd5766' `
-    -AccountKey $env:ZtechCosmosPrimaryKey
+$CosmosReadParams = @{AccountName= 'ztech'; DatabaseName= 'Ayan'; ContainerName= 'Ayanid'; AccountKey= $env:ZtechCosmosPrimaryKey}
+Read-AzCosmosItems @CosmosReadParams -PartitionKey '4cb67ab0-ba1a-0e8a-8dfc-d48472fd5766'
   </script>
+
+
   <script type="module" src="./app.js"></script>
 </body>
 </html>

@@ -35,7 +35,7 @@
   <Target Name="GenerateBuildSecrets" BeforeTargets="CoreCompile">
     <ItemGroup>
       <_BuildSecretsLines Include="#nullable disable" />
-      <_BuildSecretsLines Include="namespace HelloWasmApp" />
+      <_BuildSecretsLines Include="namespace PsWasmApp" />
       <_BuildSecretsLines Include="{" />
       <_BuildSecretsLines Include="    internal static class BuildSecrets" />
       <_BuildSecretsLines Include="    {" />

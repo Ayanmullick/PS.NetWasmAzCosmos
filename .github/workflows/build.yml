@@ -28,7 +28,7 @@ jobs:
       run: echo "ZtechCosmosPrimaryKey=${{ vars.ZtechCosmosPrimaryKey }}" >> $GITHUB_ENV
 
     - name: Build and publish
-      run: dotnet publish src/HelloWasm.csproj -c Release -r browser-wasm -o publish /p:UseAppHost=false
+      run: dotnet publish src/PsWasmApp.csproj -c Release -r browser-wasm -o publish /p:UseAppHost=false
 
     - name: Setup Pages
       uses: actions/configure-pages@v5

@@ -8,55 +8,48 @@ param(
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $htmlPath = Join-Path $scriptRoot "src/wwwroot/index.html"
 if (-not $OutputPath) {
-    $OutputPath = Join-Path $scriptRoot "src/CompiledPowerShell.g.cs"
+    # Default outside the project folder to avoid accidental compilation conflicts
+    $OutputPath = Join-Path $scriptRoot "build/CompiledPowerShell.g.cs"
 }
+
+New-Item -ItemType Directory -Force -Path (Split-Path -Parent $OutputPath) | Out-Null
 
 Write-Host "Compiling PowerShell script to C#..."
 
 # Read the PowerShell script(s) from <script type="pwsh"> in index.html
-$psCode = $null
+$psBlocks = @()
 if (Test-Path $htmlPath) {
     $indexHtml = Get-Content $htmlPath -Raw
     $regexOptions = [System.Text.RegularExpressions.RegexOptions]::Singleline -bor `
         [System.Text.RegularExpressions.RegexOptions]::IgnoreCase
     $matches = [regex]::Matches($indexHtml, '<script\s+type="pwsh"[^>]*>(?<code>.*?)</script>', $regexOptions)
-    if ($matches.Count -gt 0) {
-        $codes = $matches | ForEach-Object { $_.Groups['code'].Value.Trim() } | Where-Object { $_ }
-        $psCode = ($codes -join "`n").Trim()
-    }
+    $psBlocks = $matches | ForEach-Object { $_.Groups['code'].Value.Trim() } | Where-Object { $_ }
 }
 
-if (-not $psCode) {
+if (-not $psBlocks -or $psBlocks.Count -eq 0) {
     Write-Warning "No inline PowerShell <script type=""pwsh""> blocks found in index.html."
-    $psCode = ""
+    $psBlocks = @()
 }
 
-# Flatten line continuations (trailing backtick) so multi-line commands can be parsed
-$statements = @()
-$buffer = ""
-foreach ($line in ($psCode -split "`n")) {
-    $trimmed = $line.Trim()
+function Normalize-ParamValue {
+    param(
+        [string]$Value,
+        [string]$Name,
+        [hashtable]$EnvRefs
+    )
 
-    # Skip comments and empty lines
-    if ($trimmed -match '^#' -or [string]::IsNullOrWhiteSpace($trimmed)) {
-        continue
+    $normalized = $Value.Trim().Trim('"').Trim("'")
+
+    if ($normalized -match '^\$env:([A-Za-z_][A-Za-z0-9_]*)$') {
+        $envName = $matches[1]
+        $EnvRefs[$Name] = $envName
+        $envValue = [Environment]::GetEnvironmentVariable($envName)
+        if ($envValue) {
+            $normalized = $envValue
+        }
     }
 
-    if ($trimmed.EndsWith('`')) {
-        $buffer += $trimmed.TrimEnd('`').TrimEnd() + " "
-        continue
-    }
-
-    $statement = ($buffer + $trimmed).Trim()
-    $buffer = ""
-
-    if ($statement) {
-        $statements += $statement
-    }
-}
-
-if ($buffer.Trim()) {
-    $statements += $buffer.Trim()
+    return $normalized
 }
 
 $csharpCode = @"
@@ -73,7 +66,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-namespace HelloWasmApp;
+namespace PsWasmApp;
 
 public static class CompiledPowerShell
 {
@@ -84,137 +77,214 @@ public static class CompiledPowerShell
         var outputs = new List<string>();
 "@
 
-foreach ($statement in $statements) {
-    # Parsing statements generated from inline PowerShell
-    # Handle Write-Output 'text' or "text" by capturing content within quotes
-    if ($statement -match "Write-Output\s+(['""])(.*?)\1") {
-        $message = $matches[2] -replace '"', '""' # Use group 2 for content
-        $csharpCode += "`n        outputs.Add(`"$message`");"
-        continue
-    }
+foreach ($codeBlock in $psBlocks) {
+    # Flatten line continuations (trailing backtick) so multi-line commands can be parsed per script block
+    $statements = @()
+    $buffer = ""
+    foreach ($line in ($codeBlock -split "`n")) {
+        $trimmed = $line.Trim()
 
-    # Handle Read-AzCosmosItems with connection string or account name/key
-    if ($statement -match '(?i)^Read-AzCosmosItems\b') {
-        $paramRegex = '(?<=^|\s)-(?<name>\w+)\s+(?<value>"[^"]*"|''[^'']*''|[^-\s]\S*)'
-        $params = @{}
-        $envRefs = @{}
-        foreach ($m in [regex]::Matches($statement, $paramRegex)) {
-            $name = $m.Groups['name'].Value.ToLowerInvariant()
-            $raw = $m.Groups['value'].Value.Trim()
-            $value = $raw.Trim('"').Trim("'")
-
-            if ($value -match '^\$env:([A-Za-z_][A-Za-z0-9_]*)$') {
-                $envName = $matches[1]
-                $envRefs[$name] = $envName
-                $envValue = [Environment]::GetEnvironmentVariable($envName)
-                if ($envValue) {
-                    $value = $envValue
-                }
-            }
-
-            $params[$name] = $value
-        }
-
-        $databaseName = $params['databasename']
-        $containerName = $params['containername']
-        $accountName = $params['accountname']
-
-        $top = if ($params.ContainsKey('top')) { [int]$params['top'] } else { 1 }
-        $query = if ($params.ContainsKey('query')) { $params['query'] } else { "SELECT TOP $top * FROM c" }
-        $partitionKey = if ($params.ContainsKey('partitionkey')) { $params['partitionkey'] } else { "" }
-
-        $connectionString = ""
-        $isDynamic = $false
-        $envVar = ""
-
-        if ($params.ContainsKey('connectionstring')) {
-            $connectionString = $params['connectionstring']
-        }
-        elseif ($accountName -and $params.ContainsKey('accountkey')) {
-            $accountKey = $params['accountkey']
-
-            if ($envRefs.ContainsKey('accountkey')) {
-                $envVar = $envRefs['accountkey']
-                $isDynamic = $true
-            }
-            else {
-                if (-not $accountKey) {
-                    $csharpCode += @"
-
-        outputs.Add("Cosmos AccountKey not provided (check environment variable).");
-"@
-                    continue
-                }
-                if ($accountKey.StartsWith("=")) {
-                    $accountKey = $accountKey.TrimStart("=")
-                }
-                $endpoint = "https://$accountName.documents.azure.com:443/"
-                $connectionString = "AccountEndpoint=$endpoint;AccountKey=$accountKey;"
-            }
-        }
-
-        if (-not $databaseName -or -not $containerName) {
-            $csharpCode += @"
-
-        outputs.Add("Cosmos parameters missing.");
-"@
+        # Skip comments and empty lines
+        if ($trimmed -match '^#' -or [string]::IsNullOrWhiteSpace($trimmed)) {
             continue
         }
 
-        $query = $query -replace '"', '\"'
-        $partitionKey = $partitionKey -replace '"', '""'
-
-        if ($isDynamic) {
-            $csharpCode += @"
-
-        string? accountKey = Environment.GetEnvironmentVariable("$envVar");
-        if (string.IsNullOrWhiteSpace(accountKey))
-        {
-            accountKey = BuildSecrets.CosmosKey;
+        if ($trimmed.EndsWith('`')) {
+            $buffer += $trimmed.TrimEnd('`').TrimEnd() + " "
+            continue
         }
-        if (string.IsNullOrWhiteSpace(accountKey))
-        {
-            outputs.Add("Environment variable $envVar not set.");
+
+        $statement = ($buffer + $trimmed).Trim()
+        $buffer = ""
+
+        if ($statement) {
+            $statements += $statement
         }
-        else
+    }
+
+    if ($buffer.Trim()) {
+        $statements += $buffer.Trim()
+    }
+
+    $csharpCode += @"
+
         {
-            if (accountKey.StartsWith("="))
-            {
-                accountKey = accountKey.TrimStart('=');
+            var blockOutputs = new List<string>();
+"@
+
+    $hashtables = @{}
+
+    foreach ($statement in $statements) {
+        $hashtableMatch = [regex]::Match($statement, '^\$(?<name>\w+)\s*=\s*@\{(?<body>.*)\}$')
+        if ($hashtableMatch.Success) {
+            $htBody = $hashtableMatch.Groups['body'].Value
+            $entries = $htBody -split ';'
+            $paramMap = @{}
+            $envMap = @{}
+
+            foreach ($entry in $entries) {
+                $part = $entry.Trim()
+                if (-not $part) {
+                    continue
+                }
+
+                $kvMatch = [regex]::Match($part, '^(?<key>[A-Za-z_][A-Za-z0-9_]*)\s*=\s*(?<val>.+)$')
+                if (-not $kvMatch.Success) {
+                    continue
+                }
+
+                $keyName = $kvMatch.Groups['key'].Value.ToLowerInvariant()
+                $rawValue = $kvMatch.Groups['val'].Value.Trim()
+                $normalized = Normalize-ParamValue -Value $rawValue -Name $keyName -EnvRefs $envMap
+                $paramMap[$keyName] = $normalized
             }
-            string endpoint = "https://$accountName.documents.azure.com:443/";
-            string connectionString = $"AccountEndpoint={endpoint};AccountKey={accountKey};";
 
-            outputs.Add(await ReadFirstCosmosItemViaRestAsync(
-                connectionString: connectionString,
+            $hashtables[$hashtableMatch.Groups['name'].Value] = [pscustomobject]@{
+                Params  = $paramMap
+                EnvRefs = $envMap
+            }
+            continue
+        }
+
+        # Parsing statements generated from inline PowerShell
+        # Handle Write-Output 'text' or "text" by capturing content within quotes
+        if ($statement -match "Write-Output\s+(['""])(.*?)\1") {
+            $message = $matches[2] -replace '"', '""' # Use group 2 for content
+            $csharpCode += "`n            blockOutputs.Add(`"$message`");"
+            continue
+        }
+
+        # Handle Read-AzCosmosItems with connection string or account name/key
+        if ($statement -match '(?i)^Read-AzCosmosItems\b') {
+            $paramRegex = '(?<=^|\s)-(?<name>\w+)\s+(?<value>"[^"]*"|''[^'']*''|[^-\s]\S*)'
+            $params = @{}
+            $envRefs = @{}
+            foreach ($splat in [regex]::Matches($statement, '@(?<name>\w+)')) {
+                $splatName = $splat.Groups['name'].Value
+                if ($hashtables.ContainsKey($splatName)) {
+                    $ht = $hashtables[$splatName]
+                    foreach ($key in $ht.Params.Keys) {
+                        $params[$key] = $ht.Params[$key]
+                    }
+                    foreach ($envKey in $ht.EnvRefs.Keys) {
+                        $envRefs[$envKey] = $ht.EnvRefs[$envKey]
+                    }
+                }
+            }
+
+            foreach ($m in [regex]::Matches($statement, $paramRegex)) {
+                $name = $m.Groups['name'].Value.ToLowerInvariant()
+                $raw = $m.Groups['value'].Value.Trim()
+                $params[$name] = Normalize-ParamValue -Value $raw -Name $name -EnvRefs $envRefs
+            }
+
+            $databaseName = $params['databasename']
+            $containerName = $params['containername']
+            $accountName = $params['accountname']
+
+            $top = if ($params.ContainsKey('top')) { [int]$params['top'] } else { 1 }
+            $query = if ($params.ContainsKey('query')) { $params['query'] } else { "SELECT TOP $top * FROM c" }
+            $partitionKey = if ($params.ContainsKey('partitionkey')) { $params['partitionkey'] } else { "" }
+
+            $connectionString = ""
+            $isDynamic = $false
+            $envVar = ""
+
+            if ($params.ContainsKey('connectionstring')) {
+                $connectionString = $params['connectionstring']
+            }
+            elseif ($accountName -and $params.ContainsKey('accountkey')) {
+                $accountKey = $params['accountkey']
+
+                if ($envRefs.ContainsKey('accountkey')) {
+                    $envVar = $envRefs['accountkey']
+                    $isDynamic = $true
+                }
+                else {
+                    if (-not $accountKey) {
+                        $csharpCode += @"
+
+            blockOutputs.Add("Cosmos AccountKey not provided (check environment variable).");
+"@
+                        continue
+                    }
+                    if ($accountKey.StartsWith("=")) {
+                        $accountKey = $accountKey.TrimStart("=")
+                    }
+                    $endpoint = "https://$accountName.documents.azure.com:443/"
+                    $connectionString = "AccountEndpoint=$endpoint;AccountKey=$accountKey;"
+                }
+            }
+
+            if (-not $databaseName -or -not $containerName) {
+                $csharpCode += @"
+
+            blockOutputs.Add("Cosmos parameters missing.");
+"@
+                continue
+            }
+
+            $query = $query -replace '"', '\"'
+            $partitionKey = $partitionKey -replace '"', '""'
+
+            if ($isDynamic) {
+                $csharpCode += @"
+
+            string? accountKey = Environment.GetEnvironmentVariable("$envVar");
+            if (string.IsNullOrWhiteSpace(accountKey))
+            {
+                accountKey = BuildSecrets.CosmosKey;
+            }
+            if (string.IsNullOrWhiteSpace(accountKey))
+            {
+                blockOutputs.Add("Environment variable $envVar not set.");
+            }
+            else
+            {
+                if (accountKey.StartsWith("="))
+                {
+                    accountKey = accountKey.TrimStart('=');
+                }
+                string endpoint = "https://$accountName.documents.azure.com:443/";
+                string connectionString = $"AccountEndpoint={endpoint};AccountKey={accountKey};";
+
+                blockOutputs.Add(await ReadFirstCosmosItemViaRestAsync(
+                    connectionString: connectionString,
+                    databaseName: "$databaseName",
+                    containerName: "$containerName",
+                    query: @"$query",
+                    partitionKey: @"$partitionKey"));
+            }
+"@
+            } else {
+                $connectionString = $connectionString -replace '"', '""'
+
+                $csharpCode += @"
+
+            blockOutputs.Add(await ReadFirstCosmosItemViaRestAsync(
+                connectionString: @"$connectionString",
                 databaseName: "$databaseName",
                 containerName: "$containerName",
                 query: @"$query",
                 partitionKey: @"$partitionKey"));
-        }
 "@
-        } else {
-            $connectionString = $connectionString -replace '"', '""'
-
-            $csharpCode += @"
-
-        outputs.Add(await ReadFirstCosmosItemViaRestAsync(
-            connectionString: @"$connectionString",
-            databaseName: "$databaseName",
-            containerName: "$containerName",
-            query: @"$query",
-            partitionKey: @"$partitionKey"));
-"@
+            }
+            continue
         }
-        continue
     }
+
+    $csharpCode += @"
+
+            outputs.Add(string.Join(Environment.NewLine, blockOutputs));
+        }
+"@
 }
 
 $csharpCode += "`n"
 $csharpCode += @"
         if (outputs.Count == 0)
         {
-            return "No output generated.";
+            return string.Empty;
         }
 
         return string.Join(Environment.NewLine, outputs);

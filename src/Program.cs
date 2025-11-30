@@ -3,7 +3,7 @@ using System.Runtime.InteropServices.JavaScript;
 using System.Runtime.Versioning;
 using System.Threading.Tasks;
 
-namespace HelloWasmApp;
+namespace PsWasmApp;
 
 public static partial class Interop
 {
