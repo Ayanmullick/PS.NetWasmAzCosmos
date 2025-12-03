@@ -13,6 +13,8 @@
     <BrotliCompression>true</BrotliCompression>
     <GzipCompression>false</GzipCompression>
     <WasmStripILAfterAOT>true</WasmStripILAfterAOT>
+    <!-- Path to the PowerShell compiler tool -->
+    <PwshCompilerProject>$(MSBuildThisFileDirectory)..\tools\PwshCompiler\PwshCompiler.csproj</PwshCompilerProject>
   </PropertyGroup>
 
   <Target Name="RemoveUnwantedFiles" AfterTargets="ComputeFilesToPublish">
@@ -21,8 +23,21 @@
     </ItemGroup>
   </Target>
 
-  <Target Name="CompilePowerShell" BeforeTargets="CoreCompile">
-    <Exec Command="pwsh -NoProfile -ExecutionPolicy Bypass -File $(MSBuildThisFileDirectory)..\CompilePowerShell.ps1 -OutputPath $(IntermediateOutputPath)CompiledPowerShell.g.cs" />
+  <ItemGroup>
+    <!-- No PowerShell SDK needed at runtime - only used by the compiler tool -->
+  </ItemGroup>
+
+  <!-- Build the PowerShell compiler tool first -->
+  <Target Name="BuildPwshCompiler" BeforeTargets="CompilePowerShell">
+    <MSBuild Projects="$(PwshCompilerProject)" Targets="Build" Properties="Configuration=Release;RuntimeIdentifier=" />
+  </Target>
+
+  <!-- Run the PowerShell compiler to generate C# from HTML pwsh blocks -->
+  <Target Name="CompilePowerShell" BeforeTargets="CoreCompile" DependsOnTargets="BuildPwshCompiler">
+    <PropertyGroup>
+      <PwshCompilerDll>$(MSBuildThisFileDirectory)..\tools\PwshCompiler\bin\Release\net10.0\PwshCompiler.dll</PwshCompilerDll>
+    </PropertyGroup>
+    <Exec Command="dotnet &quot;$(PwshCompilerDll)&quot; &quot;$(MSBuildThisFileDirectory)wwwroot\index.html&quot; &quot;$(IntermediateOutputPath)CompiledPowerShell.g.cs&quot;" />
     <ItemGroup>
       <Compile Include="$(IntermediateOutputPath)CompiledPowerShell.g.cs" />
     </ItemGroup>
