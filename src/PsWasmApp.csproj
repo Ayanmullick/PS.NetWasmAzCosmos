@@ -33,10 +33,6 @@
              TaskFactory="RoslynCodeTaskFactory.CodeTaskFactory"
              AssemblyFile="$(RoslynCodeTaskFactory)"
              Condition="'$(RoslynCodeTaskFactory)' != ''">
-    <ParameterGroup>
-      <HtmlPath ParameterType="System.String" Required="true" />
-      <OutputPath ParameterType="System.String" Required="true" />
-    </ParameterGroup>
     <Task>
       <Reference Include="$(NuGetPackageRoot)system.management.automation\7.4.1\runtimes\win\lib\net8.0\System.Management.Automation.dll" />
       <Using Namespace="System" />
