@@ -14,6 +14,7 @@ namespace PwshCompiler;
 
 /// <summary>
 /// PowerShell-to-C# compiler using PowerShell SDK's AST parser and Roslyn for C# generation.
+/// In the GenerateCSharp method, Roslyn is used to construct the C# code dynamically
 /// Parses &lt;script type="pwsh"&gt; blocks from HTML and generates equivalent C# code.
 /// </summary>
 public class Program
