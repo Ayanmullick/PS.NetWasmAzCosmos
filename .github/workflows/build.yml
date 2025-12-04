@@ -24,10 +24,8 @@ jobs:
     - name: Install WebAssembly workload
       run: dotnet workload install wasm-tools
 
-    - name: Restore all projects
-      run: |
-        dotnet restore tools/PwshCompiler/PwshCompiler.csproj
-        dotnet restore src/PsWasmApp.csproj
+    - name: Restore
+      run: dotnet restore src/PsWasmApp.csproj
 
     - name: Set environment variable from repo variable
       run: echo "ZtechCosmosPrimaryKey=${{ vars.ZtechCosmosPrimaryKey }}" >> $GITHUB_ENV
