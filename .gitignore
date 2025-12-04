@@ -21,4 +21,4 @@ build/
 publish/
 
 .MyFolder/
-*.sln
+#*.sln  required for multiproject workspaces
