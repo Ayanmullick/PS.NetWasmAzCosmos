@@ -2,7 +2,7 @@
 
 This project demonstrates recompiling basic inline PowerShell (from `<script type="pwsh">` blocks in `index.html`) to C# for execution in the browser using .NET WebAssembly. The sample prints "Hello World" and fetches data from Azure Cosmos DB directly from the browser (key provided via environment/secret), showing how PowerShell logic can run entirely client-side without Blazor by translating PowerShell code into C# and hosting it via WebAssembly.
 
-The `src/` folder contains the C# entry point (generated from PowerShell) and the HTML/JS host for browser execution. Build outputs are separated into `build/` and `publish/` folders.
+The `src/` folder contains the HTML/JS host and all build-time logic. Inline `<script type="pwsh">` blocks are parsed at build time by an MSBuild task defined in `src/CompilePwshScripts.csx` (powered by RoslynCodeTaskFactory and the PowerShell SDK) which generates the C# that runs in WebAssembly. `src/RestMap.Helpers.cs` provides the Cosmos REST helpers the generated code calls.
 
 ## Prerequisites
 
@@ -37,8 +37,10 @@ This sets the Cosmos DB key the sample uses to fetch data, generates intermediat
 PsWasmApp/
 |- README.md
 |- src/
-|  |- PsWasmApp.csproj
-|  |- Program.cs          # C# code recompiled from PowerShell (Hello World + Cosmos DB query)
+|  |- PsWasmApp.csproj    # invokes CompilePwshScripts.csx via RoslynCodeTaskFactory
+|  |- CompilePwshScripts.csx # build-time task: parse <script type="pwsh"> and emit CompiledPowerShell.g.cs
+|  |- RestMap.Helpers.cs  # partial CompiledPowerShell helpers for Cosmos REST calls
+|  |- Program.cs          # app entrypoint that calls CompiledPowerShell.ExecuteAsync()
 |  `- wwwroot/
 |     |- app.js
 |     `- index.html       # Hosts inline <script type="pwsh"> blocks for compilation
@@ -51,5 +53,5 @@ PsWasmApp/
 - `Program.cs` is the C# equivalent of the PowerShell script; `Console.WriteLine` output appears in the browser.
 - The JavaScript host loads the WebAssembly runtime (`dotnet.js`) and routes console output to the page.
 - Deploy by uploading the `publish/` folder to any static host (e.g., GitHub Pages, Azure Static Web Apps).
-- During build, the MSBuild target in `PsWasmApp.csproj` emits `obj/BuildSecrets.g.cs` using the `ZtechCosmosPrimaryKey` environment variable (GitHub repo variable/secret in CI, your env var locally) so the compiled assembly can read it at runtime.
+- During build, the MSBuild target in `PsWasmApp.csproj` emits `obj/BuildSecrets.g.cs` using the `ZtechCosmosPrimaryKey` environment variable (GitHub repo variable/secret in CI, your env var locally) so the compiled assembly can read it at runtime. The same build invokes C# script file `CompilePwshScripts.csx` to transform inline PowerShell into `CompiledPowerShell.g.cs` in `\build\obj\Debug\net10.0\browser-wasm`.
 - The Cosmos DB fetch runs in the browser via .NET WebAssembly; ensure the configured key grants the least privilege needed for the sample query.
