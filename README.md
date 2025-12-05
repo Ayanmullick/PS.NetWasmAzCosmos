@@ -1,6 +1,6 @@
-# PowerShell Hello World via WebAssembly
+# PowerShell → C# WebAssembly (inline PowerShell in HTML)
 
-This project demonstrates recompiling basic inline PowerShell (from `<script type="pwsh">` blocks in `index.html`) to C# for execution in the browser using .NET WebAssembly. The sample prints "Hello World" and fetches data from Azure Cosmos DB directly from the browser (key provided via environment/secret), showing how PowerShell logic can run entirely client-side without Blazor by translating PowerShell code into C# and hosting it via WebAssembly.
+This project demonstrates recompiling inline PowerShell (from `<script type="pwsh">` blocks in `index.html`) to C# for execution in the browser using .NET WebAssembly. The sample covers multiple commands: simple output (Hello World) and an Azure Cosmos DB query over REST, showing how inline PowerShell logic can run entirely client-side—no Blazor UI—by translating PowerShell code into C# and hosting it via WebAssembly.
 
 The `src/` folder contains the HTML/JS host and all build-time logic. Inline `<script type="pwsh">` blocks are parsed at build time by an MSBuild task defined in `src/CompilePwshScripts.csx` (powered by RoslynCodeTaskFactory and the PowerShell SDK) which generates the C# that runs in WebAssembly. `src/RestMap.Helpers.cs` provides the Cosmos REST helpers the generated code calls.
 
