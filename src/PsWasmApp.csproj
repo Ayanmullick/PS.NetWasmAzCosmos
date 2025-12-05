@@ -34,7 +34,7 @@
              AssemblyFile="$(RoslynCodeTaskFactory)"
              Condition="'$(RoslynCodeTaskFactory)' != ''">
     <Task>
-      <Reference Include="$(NuGetPackageRoot)system.management.automation\7.4.1\runtimes\win\lib\net8.0\System.Management.Automation.dll" />
+      <Reference Include="$(NuGetPackageRoot)system.management.automation/7.4.1/ref/net8.0/System.Management.Automation.dll" />
       <Using Namespace="System" />
       <Using Namespace="System.Collections.Generic" />
       <Using Namespace="System.IO" />
@@ -62,7 +62,7 @@
             public override bool Execute()
             {
                 try
-                {
+    {
                     PreloadPowerShellAssemblies();
                     var blocks = ExtractBlocks(HtmlPath);
                     var code = Generate(blocks);
@@ -103,10 +103,22 @@
             private void PreloadPowerShellAssemblies()
             {
                 var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-                var asmPath = Path.Combine(userProfile, ".nuget", "packages", "system.management.automation", "7.4.1", "runtimes", "win", "lib", "net8.0", "System.Management.Automation.dll");
-                if (File.Exists(asmPath))
+                var basePath = Path.Combine(userProfile, ".nuget", "packages", "system.management.automation", "7.4.1", "runtimes");
+
+                var candidates = new[]
                 {
-                    Assembly.LoadFrom(asmPath);
+                    Path.Combine(basePath, "win", "lib", "net8.0", "System.Management.Automation.dll"),
+                    Path.Combine(basePath, "linux", "lib", "net8.0", "System.Management.Automation.dll"),
+                    Path.Combine(basePath, "osx", "lib", "net8.0", "System.Management.Automation.dll")
+                };
+
+                foreach (var candidate in candidates)
+                {
+                    if (File.Exists(candidate))
+                    {
+                        Assembly.LoadFrom(candidate);
+                        break;
+                    }
                 }
             }
 
